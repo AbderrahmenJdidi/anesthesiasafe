@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "731744049965",
+    "project_id": "anesthesiasafe-10117",
+    "storage_bucket": "anesthesiasafe-10117.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:731744049965:android:40647c70c9fc74e4d491a4",
+        "android_client_info": {
+          "package_name": "com.example.anesthesiasafe"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBzS4j704GVXPSu6WJOjjgxBUILXpj-618"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -88,17 +88,25 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   /// Simulate AI model processing with mock API call
   Future<void> _analyzeImage() async {
-    if (_selectedImage == null) return;
+  if (_selectedImage == null) return;
 
-    setState(() {
-      _isProcessing = true;
-    });
+  setState(() {
+    _isProcessing = true;
+  });
 
-    try {
-      // Simulate API call delay
-      await Future.delayed(const Duration(seconds: 3));
-      
-      // Mock API response - in real app, this would be an actual HTTP request
+  try {
+    var request = http.MultipartRequest(
+      'POST',
+      Uri.parse('http://localhost:7071/api/segment'), // Replace with your URL
+    );
+    request.files.add(await http.MultipartFile.fromPath('file', _selectedImage!.path));
+    var response = await request.send();
+    if (response.statusCode == 200) {
+      var bytes = await response.stream.toBytes();
+      setState(() {
+        _selectedImage = File.fromRawPath(bytes); // Update with background-less image
+      });
+      // Mock analysis result (replace with CNN later)
       final mockResponse = {
         'safety': true,
         'confidence': 0.92,
@@ -106,26 +114,23 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         'riskFactors': ['None detected'],
         'notes': 'Patient shows normal facial characteristics with no visible signs of respiratory distress or abnormalities.'
       };
-
       setState(() {
         _analysisResult = mockResponse;
         _isProcessing = false;
       });
-
-      // Trigger fade-in animation for results
       _fadeAnimationController.reset();
       _fadeAnimationController.forward();
-
-      // Save analysis result to Firestore
       await _authService.saveAnalysisResult(mockResponse);
-
-    } catch (e) {
-      setState(() {
-        _isProcessing = false;
-      });
-      _showSnackBar('Analysis failed: ${e.toString()}');
+    } else {
+      throw Exception('SAM 2 processing failed: ${await response.stream.bytesToString()}');
     }
+  } catch (e) {
+    setState(() {
+      _isProcessing = false;
+    });
+    _showSnackBar('Analysis failed: ${e.toString()}');
   }
+}
 
   /// Show snackbar with message
   void _showSnackBar(String message) {

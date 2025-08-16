@@ -1,3 +1,4 @@
+import 'package:anesthesia_safe/screens/auth/sign_in_screen.dart';
 import 'package:flutter/material.dart';
 import '../../services/auth_service.dart';
 import '../../widgets/auth/auth_text_field.dart';
@@ -14,7 +15,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final AuthService _authService = AuthService();
-  
+
   bool _isLoading = false;
   bool _emailSent = false;
 
@@ -27,21 +28,21 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   Future<void> _resetPassword() async {
     if (!_formKey.currentState!.validate()) return;
 
-    setState(() {
-      _isLoading = true;
-    });
+    setState(() => _isLoading = true);
 
     try {
       await _authService.resetPassword(_emailController.text.trim());
-      setState(() {
-        _emailSent = true;
-      });
+      if (mounted) {
+        setState(() => _emailSent = true);
+      }
     } catch (e) {
-      _showErrorSnackBar(e.toString());
+      if (mounted) {
+        _showErrorSnackBar('Failed to send reset email: $e');
+      }
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -49,7 +50,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
-        backgroundColor: Theme.of(context).colorScheme.error,
+        backgroundColor: Colors.red,
         behavior: SnackBarBehavior.floating,
         margin: const EdgeInsets.all(16),
         shape: RoundedRectangleBorder(
@@ -62,11 +63,11 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Theme.of(context).colorScheme.background,
+      backgroundColor: Colors.white,
       appBar: AppBar(
         title: const Text('Reset Password'),
-        backgroundColor: Colors.transparent,
-        elevation: 0,
+        backgroundColor: Colors.blue,
+        foregroundColor: Colors.white,
       ),
       body: SafeArea(
         child: Padding(
@@ -77,36 +78,31 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 const SizedBox(height: 32),
-                
                 Icon(
                   _emailSent ? Icons.mark_email_read_outlined : Icons.lock_reset_outlined,
                   size: 80,
-                  color: Theme.of(context).primaryColor,
+                  color: Colors.blue,
                 ),
                 const SizedBox(height: 24),
-                
                 Text(
                   _emailSent ? 'Check Your Email' : 'Forgot Password?',
                   style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: const Color(0xFF1A237E),
-                  ),
+                        fontWeight: FontWeight.bold,
+                        color: const Color(0xFF1A237E),
+                      ),
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 16),
-                
                 Text(
                   _emailSent
                       ? 'We\'ve sent a password reset link to ${_emailController.text}'
                       : 'Enter your email address and we\'ll send you a link to reset your password.',
                   style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                    color: Colors.grey[600],
-                  ),
+                        color: Colors.grey[600],
+                      ),
                   textAlign: TextAlign.center,
                 ),
-                
                 const SizedBox(height: 48),
-                
                 if (!_emailSent) ...[
                   AuthTextField(
                     controller: _emailController,
@@ -124,37 +120,35 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                       return null;
                     },
                   ),
-                  
                   const SizedBox(height: 32),
-                  
                   AuthButton(
                     text: 'Send Reset Link',
                     isLoading: _isLoading,
                     onPressed: _resetPassword,
                   ),
                 ] else ...[
-                  ElevatedButton(
+                  AuthButton(
+                    text: 'Back to Sign In',
+                    isLoading: false,
                     onPressed: () {
-                      Navigator.pop(context);
+                      Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(builder: (context) => const SignInScreen()),
+                      );
                     },
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    child: const Text('Back to Sign In'),
                   ),
-                  
                   const SizedBox(height: 16),
-                  
                   TextButton(
                     onPressed: () {
-                      setState(() {
-                        _emailSent = false;
-                      });
+                      setState(() => _emailSent = false);
                     },
-                    child: const Text('Try Different Email'),
+                    child: Text(
+                      'Try Different Email',
+                      style: TextStyle(
+                        color: Colors.blue,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                   ),
                 ],
               ],

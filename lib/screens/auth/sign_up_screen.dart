@@ -1,7 +1,10 @@
+import 'package:anesthesia_safe/screens/auth/sign_in_screen.dart';
+import 'package:anesthesia_safe/screens/auth/pending_screen.dart';
 import 'package:flutter/material.dart';
 import '../../services/auth_service.dart';
 import '../../widgets/auth/auth_text_field.dart';
 import '../../widgets/auth/auth_button.dart';
+
 
 class SignUpScreen extends StatefulWidget {
   const SignUpScreen({super.key});
@@ -10,8 +13,7 @@ class SignUpScreen extends StatefulWidget {
   State<SignUpScreen> createState() => _SignUpScreenState();
 }
 
-class _SignUpScreenState extends State<SignUpScreen>
-    with TickerProviderStateMixin {
+class _SignUpScreenState extends State<SignUpScreen> with TickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
   final _fullNameController = TextEditingController();
   final _emailController = TextEditingController();
@@ -19,11 +21,11 @@ class _SignUpScreenState extends State<SignUpScreen>
   final _confirmPasswordController = TextEditingController();
   final _specialtyController = TextEditingController();
   final AuthService _authService = AuthService();
-  
+
   bool _isLoading = false;
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
-  
+
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _slideAnimation;
@@ -56,7 +58,7 @@ class _SignUpScreenState extends State<SignUpScreen>
       parent: _animationController,
       curve: Curves.easeOutBack,
     ));
-    
+
     _animationController.forward();
   }
 
@@ -74,34 +76,30 @@ class _SignUpScreenState extends State<SignUpScreen>
   Future<void> _signUp() async {
     if (!_formKey.currentState!.validate()) return;
 
-    setState(() {
-      _isLoading = true;
-    });
+    setState(() => _isLoading = true);
 
     try {
-      print('Starting registration process...');
       await _authService.registerWithEmailAndPassword(
         _emailController.text.trim(),
         _passwordController.text,
         _fullNameController.text.trim(),
         _specialtyController.text.trim(),
       );
-      
-      print('Registration successful');
+
       if (mounted) {
-        Navigator.pop(context);
-        _showSuccessSnackBar('Account created successfully!');
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (context) =>  PendingScreen()),
+          (route) => false,
+        );
       }
     } catch (e) {
-      print('Registration error: $e');
       if (mounted) {
-        _showErrorSnackBar(e.toString());
+        _showErrorSnackBar('Registration failed: $e');
       }
     } finally {
       if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
+        setState(() => _isLoading = false);
       }
     }
   }
@@ -120,28 +118,14 @@ class _SignUpScreenState extends State<SignUpScreen>
     );
   }
 
-  void _showSuccessSnackBar(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: Colors.green,
-        behavior: SnackBarBehavior.floating,
-        margin: const EdgeInsets.all(16),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Theme.of(context).colorScheme.background,
+      backgroundColor: Colors.white,
       appBar: AppBar(
         title: const Text('Create Account'),
-        backgroundColor: Colors.transparent,
-        elevation: 0,
+        backgroundColor: Colors.blue,
+        foregroundColor: Colors.white,
       ),
       body: SafeArea(
         child: SingleChildScrollView(
@@ -155,35 +139,29 @@ class _SignUpScreenState extends State<SignUpScreen>
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    // Header
                     Icon(
                       Icons.person_add_outlined,
                       size: 64,
-                      color: Theme.of(context).primaryColor,
+                      color: Colors.blue,
                     ),
                     const SizedBox(height: 24),
-                    
                     Text(
                       'Join AnesthesiaSafe',
                       style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: const Color(0xFF1A237E),
-                      ),
+                            fontWeight: FontWeight.bold,
+                            color: const Color(0xFF1A237E),
+                          ),
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 8),
-                    
                     Text(
-                      'Create your professional account',
+                      'Create your professional account. Awaiting admin approval.',
                       style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                        color: Colors.grey[600],
-                      ),
+                            color: Colors.grey[600],
+                          ),
                       textAlign: TextAlign.center,
                     ),
-                    
                     const SizedBox(height: 32),
-                    
-                    // Full Name Field
                     AuthTextField(
                       controller: _fullNameController,
                       label: 'Full Name',
@@ -198,10 +176,7 @@ class _SignUpScreenState extends State<SignUpScreen>
                         return null;
                       },
                     ),
-                    
                     const SizedBox(height: 20),
-                    
-                    // Email Field
                     AuthTextField(
                       controller: _emailController,
                       label: 'Email Address',
@@ -218,10 +193,7 @@ class _SignUpScreenState extends State<SignUpScreen>
                         return null;
                       },
                     ),
-                    
                     const SizedBox(height: 20),
-                    
-                    // Specialty Dropdown
                     DropdownButtonFormField<String>(
                       value: _specialtyController.text.isEmpty ? null : _specialtyController.text,
                       decoration: InputDecoration(
@@ -236,7 +208,7 @@ class _SignUpScreenState extends State<SignUpScreen>
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: Theme.of(context).primaryColor),
+                          borderSide: BorderSide(color: Colors.blue),
                         ),
                       ),
                       items: _specialties.map((String specialty) {
@@ -257,10 +229,7 @@ class _SignUpScreenState extends State<SignUpScreen>
                         return null;
                       },
                     ),
-                    
                     const SizedBox(height: 20),
-                    
-                    // Password Field
                     AuthTextField(
                       controller: _passwordController,
                       label: 'Password',
@@ -288,10 +257,7 @@ class _SignUpScreenState extends State<SignUpScreen>
                         return null;
                       },
                     ),
-                    
                     const SizedBox(height: 20),
-                    
-                    // Confirm Password Field
                     AuthTextField(
                       controller: _confirmPasswordController,
                       label: 'Confirm Password',
@@ -319,25 +285,21 @@ class _SignUpScreenState extends State<SignUpScreen>
                         return null;
                       },
                     ),
-                    
                     const SizedBox(height: 32),
-                    
-                    // Sign Up Button
                     AuthButton(
-                      text: 'Create Account',
+                      text: 'Submit for Approval',
                       isLoading: _isLoading,
                       onPressed: _signUp,
                     ),
-                    
                     const SizedBox(height: 24),
-                    
-                    // Terms and Privacy
-                    Text(
-                      'By creating an account, you agree to our Terms of Service and Privacy Policy',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Colors.grey[600],
-                      ),
-                      textAlign: TextAlign.center,
+                    TextButton(
+                      onPressed: () {
+                        Navigator.pushReplacement(
+                          context,
+                          MaterialPageRoute(builder: (context) => const SignInScreen()),
+                        );
+                      },
+                      child: const Text('Already have an account? Sign In'),
                     ),
                   ],
                 ),

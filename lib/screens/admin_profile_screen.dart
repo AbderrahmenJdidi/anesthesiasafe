@@ -1,18 +1,18 @@
+import 'package:anesthesia_safe/screens/auth/sign_in_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../services/auth_service.dart';
-import '../widgets/account/profile_section.dart';
-import '../widgets/account/analysis_history_section.dart';
-import '../widgets/account/settings_section.dart';
+import '../../services/auth_service.dart';
+import '../../widgets/account/profile_section.dart';
+import '../../widgets/account/settings_section.dart';
 
-class AccountScreen extends StatefulWidget {
-  const AccountScreen({super.key});
+class AdminProfileScreen extends StatefulWidget {
+  const AdminProfileScreen({super.key});
 
   @override
-  State<AccountScreen> createState() => _AccountScreenState();
+  _AdminProfileScreenState createState() => _AdminProfileScreenState();
 }
 
-class _AccountScreenState extends State<AccountScreen>
+class _AdminProfileScreenState extends State<AdminProfileScreen>
     with TickerProviderStateMixin {
   final AuthService _authService = AuthService();
   late TabController _tabController;
@@ -23,7 +23,7 @@ class _AccountScreenState extends State<AccountScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 2, vsync: this); // Reduced to 2 tabs
     _loadUserData();
   }
 
@@ -64,12 +64,33 @@ class _AccountScreenState extends State<AccountScreen>
     }
   }
 
+  Future<void> _signOut() async {
+    try {
+      await _authService.signOut();
+      if (mounted) {
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (context) => const SignInScreen()),
+          (route) => false,
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Sign out failed: $e'),
+            backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        title: const Text('Account'),
+        title: const Text('Admin Profile'),
         backgroundColor: Colors.blue,
         foregroundColor: Colors.white,
         bottom: TabBar(
@@ -79,7 +100,6 @@ class _AccountScreenState extends State<AccountScreen>
           unselectedLabelColor: Colors.white70,
           tabs: const [
             Tab(icon: Icon(Icons.person_outlined), text: 'Profile'),
-            Tab(icon: Icon(Icons.history_outlined), text: 'History'),
             Tab(icon: Icon(Icons.settings_outlined), text: 'Settings'),
           ],
         ),
@@ -120,7 +140,6 @@ class _AccountScreenState extends State<AccountScreen>
                   controller: _tabController,
                   children: [
                     ProfileSection(userData: _userData),
-                    const AnalysisHistorySection(),
                     const SettingsSection(),
                   ],
                 ),

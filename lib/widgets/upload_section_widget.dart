@@ -1,9 +1,11 @@
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
 class UploadSectionWidget extends StatelessWidget {
   final File? selectedImage;
+  final Uint8List? segmentedImage;
   final bool isProcessing;
   final Function(ImageSource) onPickImage;
   final VoidCallback onAnalyze;
@@ -12,6 +14,7 @@ class UploadSectionWidget extends StatelessWidget {
   const UploadSectionWidget({
     super.key,
     required this.selectedImage,
+    required this.segmentedImage,
     required this.isProcessing,
     required this.onPickImage,
     required this.onAnalyze,
@@ -31,7 +34,7 @@ class UploadSectionWidget extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             // Image Preview or Upload Area
-            if (selectedImage == null)
+            if (selectedImage == null && segmentedImage == null)
               _buildUploadArea(context)
             else
               _buildImagePreview(context),
@@ -94,23 +97,70 @@ class UploadSectionWidget extends StatelessWidget {
   }
 
   Widget _buildImagePreview(BuildContext context) {
-    return Container(
-      constraints: const BoxConstraints(maxHeight: 300),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: Colors.grey.withOpacity(0.3),
-          width: 1,
-        ),
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(12),
-        child: Image.file(
-          selectedImage!,
-          fit: BoxFit.cover,
-          width: double.infinity,
-        ),
-      ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Original Image
+        if (selectedImage != null) ...[
+          Text(
+            'Original Image',
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.bold,
+              color: const Color(0xFF1A237E),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Container(
+            constraints: const BoxConstraints(maxHeight: 300),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: Colors.grey.withOpacity(0.3),
+                width: 1,
+              ),
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: Image.file(
+                selectedImage!,
+                fit: BoxFit.cover,
+                width: double.infinity,
+              ),
+            ),
+          ),
+        ],
+        // Segmented Image
+        if (segmentedImage != null) ...[
+          const SizedBox(height: 16),
+          Text(
+            'Segmented Image (Background Removed)',
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.bold,
+              color: const Color(0xFF1A237E),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Container(
+            constraints: const BoxConstraints(maxHeight: 300),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: Colors.grey.withOpacity(0.3),
+                width: 1,
+              ),
+              color: Colors.grey[200], // Gray background to show transparency
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: Image.memory(
+                segmentedImage!,
+                fit: BoxFit.cover,
+                width: double.infinity,
+              ),
+            ),
+          ),
+        ],
+      ],
     );
   }
 

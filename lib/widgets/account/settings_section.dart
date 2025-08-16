@@ -1,5 +1,7 @@
+import 'package:anesthesia_safe/screens/auth/sign_in_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../services/auth_service.dart';
 
 class SettingsSection extends StatefulWidget {
   const SettingsSection({super.key});
@@ -9,9 +11,8 @@ class SettingsSection extends StatefulWidget {
 }
 
 class _SettingsSectionState extends State<SettingsSection> {
-  bool _notificationsEnabled = true;
-  bool _saveAnalysisHistory = true;
-  bool _autoSaveResults = true;
+  final AuthService _authService = AuthService();
+  bool _isLoading = false;
   String _selectedTheme = 'System';
 
   @override
@@ -23,9 +24,6 @@ class _SettingsSectionState extends State<SettingsSection> {
   Future<void> _loadSettings() async {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
-      _notificationsEnabled = prefs.getBool('notifications_enabled') ?? true;
-      _saveAnalysisHistory = prefs.getBool('save_analysis_history') ?? true;
-      _autoSaveResults = prefs.getBool('auto_save_results') ?? true;
       _selectedTheme = prefs.getString('selected_theme') ?? 'System';
     });
   }
@@ -39,6 +37,101 @@ class _SettingsSectionState extends State<SettingsSection> {
     }
   }
 
+  Future<void> _signOut() async {
+    bool? confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Confirm Sign Out'),
+        content: const Text('Are you sure you want to sign out?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Sign Out'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
+    setState(() => _isLoading = true);
+    try {
+      await _authService.signOut();
+      if (mounted) {
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (context) => const SignInScreen()),
+          (route) => false,
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Sign out failed: $e'), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  Future<void> _deleteAccount() async {
+    bool? confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Confirm Account Deletion'),
+        content: const Text('Are you sure you want to delete your account? This action cannot be undone.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
+    setState(() => _isLoading = true);
+    try {
+      final uid = _authService.currentUser?.uid;
+      if (uid != null) {
+        await _authService.deleteAccount(uid);
+        if (mounted) {
+          Navigator.pushAndRemoveUntil(
+            context,
+            MaterialPageRoute(builder: (context) => const SignInScreen()),
+            (route) => false,
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Delete account failed: $e'), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
@@ -46,88 +139,27 @@ class _SettingsSectionState extends State<SettingsSection> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // App Settings
           _buildSettingsCard(
-            'App Settings',
-            Icons.settings_outlined,
-            [
-              _buildSwitchTile(
-                'Enable Notifications',
-                'Receive alerts and updates',
-                Icons.notifications_outlined,
-                _notificationsEnabled,
-                (value) {
-                  setState(() {
-                    _notificationsEnabled = value;
-                  });
-                  _saveSetting('notifications_enabled', value);
-                },
-              ),
-              _buildSwitchTile(
-                'Save Analysis History',
-                'Store analysis results in your account',
-                Icons.history_outlined,
-                _saveAnalysisHistory,
-                (value) {
-                  setState(() {
-                    _saveAnalysisHistory = value;
-                  });
-                  _saveSetting('save_analysis_history', value);
-                },
-              ),
-              _buildSwitchTile(
-                'Auto-save Results',
-                'Automatically save analysis results',
-                Icons.save_outlined,
-                _autoSaveResults,
-                (value) {
-                  setState(() {
-                    _autoSaveResults = value;
-                  });
-                  _saveSetting('auto_save_results', value);
-                },
-              ),
-            ],
-          ),
-          
-          const SizedBox(height: 24),
-          
-          // Privacy & Security
-          _buildSettingsCard(
-            'Privacy & Security',
-            Icons.security_outlined,
+            'Account',
+            Icons.person_outlined,
             [
               _buildListTile(
-                'Data Privacy',
-                'Manage your data and privacy settings',
-                Icons.privacy_tip_outlined,
-                () {
-                  _showPrivacyDialog();
-                },
-              ),
-              _buildListTile(
-                'Export Data',
-                'Download your analysis history',
-                Icons.download_outlined,
-                () {
-                  _showExportDialog();
-                },
+                'Sign Out',
+                'Log out of your account',
+                Icons.logout,
+                _signOut,
+                isDestructive: true,
               ),
               _buildListTile(
                 'Delete Account',
                 'Permanently delete your account and data',
                 Icons.delete_forever_outlined,
-                () {
-                  _showDeleteAccountDialog();
-                },
+                _deleteAccount,
                 isDestructive: true,
               ),
             ],
           ),
-          
           const SizedBox(height: 24),
-          
-          // About
           _buildSettingsCard(
             'About',
             Icons.info_outlined,
@@ -142,25 +174,19 @@ class _SettingsSectionState extends State<SettingsSection> {
                 'Terms of Service',
                 'Read our terms and conditions',
                 Icons.description_outlined,
-                () {
-                  _showTermsDialog();
-                },
+                _showTermsDialog,
               ),
               _buildListTile(
                 'Privacy Policy',
                 'Read our privacy policy',
                 Icons.policy_outlined,
-                () {
-                  _showPrivacyPolicyDialog();
-                },
+                _showPrivacyPolicyDialog,
               ),
               _buildListTile(
                 'Contact Support',
                 'Get help and support',
                 Icons.support_agent_outlined,
-                () {
-                  _showSupportDialog();
-                },
+                _showSupportDialog,
               ),
             ],
           ),
@@ -172,9 +198,7 @@ class _SettingsSectionState extends State<SettingsSection> {
   Widget _buildSettingsCard(String title, IconData icon, List<Widget> children) {
     return Card(
       elevation: 2,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
@@ -182,14 +206,14 @@ class _SettingsSectionState extends State<SettingsSection> {
           children: [
             Row(
               children: [
-                Icon(icon, color: Theme.of(context).primaryColor),
+                Icon(icon, color: Colors.blue),
                 const SizedBox(width: 12),
                 Text(
                   title,
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: const Color(0xFF1A237E),
-                  ),
+                        fontWeight: FontWeight.bold,
+                        color: const Color(0xFF1A237E),
+                      ),
                 ),
               ],
             ),
@@ -215,7 +239,7 @@ class _SettingsSectionState extends State<SettingsSection> {
       trailing: Switch(
         value: value,
         onChanged: onChanged,
-        activeColor: Theme.of(context).primaryColor,
+        activeColor: Colors.blue,
       ),
       contentPadding: EdgeInsets.zero,
     );
@@ -229,16 +253,8 @@ class _SettingsSectionState extends State<SettingsSection> {
     bool isDestructive = false,
   }) {
     return ListTile(
-      leading: Icon(
-        icon,
-        color: isDestructive ? Colors.red : Colors.grey[600],
-      ),
-      title: Text(
-        title,
-        style: TextStyle(
-          color: isDestructive ? Colors.red : null,
-        ),
-      ),
+      leading: Icon(icon, color: isDestructive ? Colors.red : Colors.grey[600]),
+      title: Text(title, style: TextStyle(color: isDestructive ? Colors.red : null)),
       subtitle: Text(subtitle),
       trailing: onTap != null ? const Icon(Icons.chevron_right) : null,
       onTap: onTap,
@@ -246,46 +262,11 @@ class _SettingsSectionState extends State<SettingsSection> {
     );
   }
 
-  void _showPrivacyDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Data Privacy'),
-        content: const Text(
-          'Your medical data is encrypted and stored securely. We never share your personal information with third parties without your explicit consent.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('OK'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showExportDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Export Data'),
-        content: const Text(
-          'This feature will be available in a future update. You will be able to export your analysis history as a PDF or CSV file.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('OK'),
-          ),
-        ],
-      ),
-    );
-  }
-
   void _showDeleteAccountDialog() {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: const Text('Delete Account'),
         content: const Text(
           'Are you sure you want to delete your account? This action cannot be undone and all your data will be permanently deleted.',
@@ -296,18 +277,8 @@ class _SettingsSectionState extends State<SettingsSection> {
             child: const Text('Cancel'),
           ),
           ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              // TODO: Implement account deletion
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Account deletion will be available in a future update'),
-                ),
-              );
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-            ),
+            onPressed: _deleteAccount,
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             child: const Text('Delete'),
           ),
         ],
@@ -319,6 +290,7 @@ class _SettingsSectionState extends State<SettingsSection> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: const Text('Terms of Service'),
         content: const SingleChildScrollView(
           child: Text(
@@ -339,6 +311,7 @@ class _SettingsSectionState extends State<SettingsSection> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: const Text('Privacy Policy'),
         content: const SingleChildScrollView(
           child: Text(
@@ -359,6 +332,7 @@ class _SettingsSectionState extends State<SettingsSection> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: const Text('Contact Support'),
         content: const Text(
           'For technical support or questions about AnesthesiaSafe, please contact our support team at support@anesthesiasafe.com',

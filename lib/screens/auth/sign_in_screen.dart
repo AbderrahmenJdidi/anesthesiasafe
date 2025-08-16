@@ -1,9 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../services/auth_service.dart';
 import '../../widgets/auth/auth_text_field.dart';
 import '../../widgets/auth/auth_button.dart';
 import 'sign_up_screen.dart';
 import 'forgot_password_screen.dart';
+import '../home_screen.dart';
+import '../admin_dashboard.dart';
+import 'pending_screen.dart';
 
 class SignInScreen extends StatefulWidget {
   const SignInScreen({super.key});
@@ -12,16 +17,15 @@ class SignInScreen extends StatefulWidget {
   State<SignInScreen> createState() => _SignInScreenState();
 }
 
-class _SignInScreenState extends State<SignInScreen>
-    with TickerProviderStateMixin {
+class _SignInScreenState extends State<SignInScreen> with TickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final AuthService _authService = AuthService();
-  
+
   bool _isLoading = false;
   bool _obscurePassword = true;
-  
+
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _slideAnimation;
@@ -43,7 +47,7 @@ class _SignInScreenState extends State<SignInScreen>
       parent: _animationController,
       curve: Curves.easeOutBack,
     ));
-    
+
     _animationController.forward();
   }
 
@@ -58,25 +62,95 @@ class _SignInScreenState extends State<SignInScreen>
   Future<void> _signIn() async {
     if (!_formKey.currentState!.validate()) return;
 
-    setState(() {
-      _isLoading = true;
-    });
+    if (!mounted) return;
+
+    setState(() => _isLoading = true);
 
     try {
-      await _authService.signInWithEmailAndPassword(
+      final result = await _authService.signInWithEmailAndPassword(
         _emailController.text.trim(),
         _passwordController.text,
       );
+
+      if (!mounted) return;
+
+      if (result?.user == null) {
+        _showErrorSnackBar('Sign-in failed: No user data returned');
+        return;
+      }
+
+      final userDataSnapshot = await _authService.getUserData(result!.user!.uid);
+      if (!userDataSnapshot.exists || userDataSnapshot.data() == null) {
+        await _authService.signOut();
+        _showErrorSnackBar('Sign-in failed: User data not found');
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (context) => const SignInScreen()),
+          (route) => false,
+        );
+        return;
+      }
+
+      final userData = userDataSnapshot.data() as Map<String, dynamic>;
+      final role = userData['role'] as String?;
+      final isAdmin = role == 'admin';
+
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(
+          builder: (context) => isAdmin ? const AdminDashboard() : const HomeScreen(),
+        ),
+        (route) => false,
+      );
     } catch (e) {
       if (mounted) {
-        _showErrorSnackBar(e.toString());
+        String errorMessage;
+        if (e is FirebaseAuthException) {
+          errorMessage = _handleAuthException(e);
+        } else if (e.toString().contains('Your account is pending approval')) {
+          Navigator.pushAndRemoveUntil(
+            context,
+            MaterialPageRoute(builder: (context) => PendingScreen()),
+            (route) => false,
+          );
+          return;
+        } else if (e.toString().contains('Your account has been denied')) {
+          await _authService.signOut();
+          _showErrorSnackBar('Your account has been denied. Please contact support.');
+          Navigator.pushAndRemoveUntil(
+            context,
+            MaterialPageRoute(builder: (context) => const SignInScreen()),
+            (route) => false,
+          );
+          return;
+        } else {
+          errorMessage = 'Sign in failed: $e';
+        }
+        _showErrorSnackBar(errorMessage);
       }
     } finally {
       if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
+        setState(() => _isLoading = false);
       }
+    }
+  }
+
+  String _handleAuthException(FirebaseAuthException e) {
+    switch (e.code) {
+      case 'user-not-found':
+        return 'No user found with this email address.';
+      case 'wrong-password':
+        return 'Incorrect password. Please try again.';
+      case 'invalid-email':
+        return 'Please enter a valid email address.';
+      case 'user-disabled':
+        return 'This account has been disabled. Please contact support.';
+      case 'too-many-requests':
+        return 'Too many failed attempts. Please try again later.';
+      case 'network-request-failed':
+        return 'Network error. Please check your internet connection and try again.';
+      default:
+        return 'Authentication failed: ${e.message ?? e.code}.';
     }
   }
 
@@ -84,7 +158,7 @@ class _SignInScreenState extends State<SignInScreen>
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
-        backgroundColor: Theme.of(context).colorScheme.error,
+        backgroundColor: Colors.red,
         behavior: SnackBarBehavior.floating,
         margin: const EdgeInsets.all(16),
         shape: RoundedRectangleBorder(
@@ -97,7 +171,7 @@ class _SignInScreenState extends State<SignInScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Theme.of(context).colorScheme.background,
+      backgroundColor: Colors.white,
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24.0),
@@ -111,36 +185,29 @@ class _SignInScreenState extends State<SignInScreen>
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     const SizedBox(height: 60),
-                    
-                    // Logo and Welcome
                     Icon(
                       Icons.medical_services,
                       size: 80,
-                      color: Theme.of(context).primaryColor,
+                      color: Colors.blue,
                     ),
                     const SizedBox(height: 24),
-                    
                     Text(
                       'Welcome Back',
                       style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: const Color(0xFF1A237E),
-                      ),
+                            fontWeight: FontWeight.bold,
+                            color: const Color(0xFF1A237E),
+                          ),
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 8),
-                    
                     Text(
                       'Sign in to continue using AnesthesiaSafe',
                       style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                        color: Colors.grey[600],
-                      ),
+                            color: Colors.grey[600],
+                          ),
                       textAlign: TextAlign.center,
                     ),
-                    
                     const SizedBox(height: 48),
-                    
-                    // Email Field
                     AuthTextField(
                       controller: _emailController,
                       label: 'Email Address',
@@ -157,10 +224,7 @@ class _SignInScreenState extends State<SignInScreen>
                         return null;
                       },
                     ),
-                    
                     const SizedBox(height: 20),
-                    
-                    // Password Field
                     AuthTextField(
                       controller: _passwordController,
                       label: 'Password',
@@ -185,10 +249,7 @@ class _SignInScreenState extends State<SignInScreen>
                         return null;
                       },
                     ),
-                    
                     const SizedBox(height: 12),
-                    
-                    // Forgot Password
                     Align(
                       alignment: Alignment.centerRight,
                       child: TextButton(
@@ -203,37 +264,31 @@ class _SignInScreenState extends State<SignInScreen>
                         child: Text(
                           'Forgot Password?',
                           style: TextStyle(
-                            color: Theme.of(context).primaryColor,
+                            color: Colors.blue,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
                       ),
                     ),
-                    
                     const SizedBox(height: 32),
-                    
-                    // Sign In Button
                     AuthButton(
                       text: 'Sign In',
                       isLoading: _isLoading,
                       onPressed: _signIn,
                     ),
-                    
                     const SizedBox(height: 32),
-                    
-                    // Sign Up Link
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Text(
                           "Don't have an account? ",
                           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: Colors.grey[600],
-                          ),
+                                color: Colors.grey[600],
+                              ),
                         ),
                         TextButton(
                           onPressed: () {
-                            Navigator.push(
+                            Navigator.pushReplacement(
                               context,
                               MaterialPageRoute(
                                 builder: (context) => const SignUpScreen(),
@@ -243,7 +298,7 @@ class _SignInScreenState extends State<SignInScreen>
                           child: Text(
                             'Sign Up',
                             style: TextStyle(
-                              color: Theme.of(context).primaryColor,
+                              color: Colors.blue,
                               fontWeight: FontWeight.bold,
                             ),
                           ),

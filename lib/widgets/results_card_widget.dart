@@ -13,8 +13,11 @@ class ResultsCardWidget extends StatelessWidget {
     final bool isSafe = analysisResult['safety'] ?? false;
     final double confidence = analysisResult['confidence'] ?? 0.0;
     final String recommendation = analysisResult['recommendation'] ?? '';
+    final String riskLevel = analysisResult['riskLevel'] ?? 'UNKNOWN';
     final List<String> riskFactors = List<String>.from(analysisResult['riskFactors'] ?? []);
     final String notes = analysisResult['notes'] ?? '';
+    final Map<String, dynamic> probabilities = analysisResult['probabilities'] ?? {};
+    final String prediction = analysisResult['prediction'] ?? '';
 
     return Card(
       elevation: 8,
@@ -58,7 +61,7 @@ class ResultsCardWidget extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          isSafe ? 'SAFE FOR ANESTHESIA' : 'CAUTION REQUIRED',
+                          prediction.isNotEmpty ? prediction : (isSafe ? 'SAFE FOR ANESTHESIA' : 'CAUTION REQUIRED'),
                           style: Theme.of(context).textTheme.titleLarge?.copyWith(
                             fontWeight: FontWeight.bold,
                             color: isSafe ? Colors.green[800] : Colors.orange[800],
@@ -80,9 +83,49 @@ class ResultsCardWidget extends StatelessWidget {
               const SizedBox(height: 24),
 
               // Confidence Level Indicator
-              _buildConfidenceIndicator(context, confidence),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Confidence Level',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: const Color(0xFF1A237E),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  LinearProgressIndicator(
+                    value: confidence,
+                    backgroundColor: Colors.grey[300],
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                      _getConfidenceColor(confidence),
+                    ),
+                    minHeight: 6,
+                  ),
+                ],
+              ),
 
               const SizedBox(height: 24),
+
+              // Probabilities if available
+              if (probabilities.isNotEmpty) ...[
+                Text(
+                  'Probability Distribution',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: const Color(0xFF1A237E),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text('Safe: ${((probabilities['safe'] ?? 0.0) * 100).toStringAsFixed(1)}%'),
+                    Text('Difficult: ${((probabilities['hard'] ?? 0.0) * 100).toStringAsFixed(1)}%'),
+                  ],
+                ),
+                const SizedBox(height: 20),
+              ],
 
               // Recommendation Section
               _buildSection(
@@ -96,12 +139,13 @@ class ResultsCardWidget extends StatelessWidget {
               const SizedBox(height: 20),
 
               // Risk Factors Section
-              _buildRiskFactorsSection(context, riskFactors),
-
-              const SizedBox(height: 20),
+              if (riskFactors.isNotEmpty) ...[
+                _buildRiskFactorsSection(context, riskFactors),
+                const SizedBox(height: 20),
+              ],
 
               // Clinical Notes Section
-              if (notes.isNotEmpty)
+              if (notes.isNotEmpty) ...[
                 _buildSection(
                   context,
                   'Clinical Notes',
@@ -109,8 +153,8 @@ class ResultsCardWidget extends StatelessWidget {
                   notes,
                   Colors.purple,
                 ),
-
-              const SizedBox(height: 24),
+                const SizedBox(height: 20),
+              ],
 
               // Disclaimer
               Container(
@@ -144,42 +188,6 @@ class ResultsCardWidget extends StatelessWidget {
           ),
         ),
       ),
-    );
-  }
-
-  Widget _buildConfidenceIndicator(BuildContext context, double confidence) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              'Confidence Level',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: const Color(0xFF1A237E),
-              ),
-            ),
-            Text(
-              '${(confidence * 100).toStringAsFixed(1)}%',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: _getConfidenceColor(confidence),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        LinearProgressIndicator(
-          value: confidence,
-          backgroundColor: Colors.grey[300],
-          valueColor: AlwaysStoppedAnimation<Color>(
-            _getConfidenceColor(confidence),
-          ),
-          minHeight: 6,
-        ),
-      ],
     );
   }
 
